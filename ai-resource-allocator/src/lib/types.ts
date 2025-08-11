@@ -43,3 +43,22 @@ export interface BusinessRule {
   description: string;
   parameters: Record<string, unknown>;
 }
+
+export interface FilteredResults {
+  clients: Client[];
+  workers: Worker[];
+  tasks: Task[];
+}
+
+// Type guards for better type safety
+export const isClient = (data: unknown): data is Client => {
+  return typeof data === 'object' && data !== null && 'ClientID' in data;
+};
+
+export const isWorker = (data: unknown): data is Worker => {
+  return typeof data === 'object' && data !== null && 'WorkerID' in data;
+};
+
+export const isTask = (data: unknown): data is Task => {
+  return typeof data === 'object' && data !== null && 'TaskID' in data;
+};

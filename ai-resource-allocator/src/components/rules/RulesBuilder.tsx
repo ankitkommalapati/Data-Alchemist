@@ -1,3 +1,4 @@
+// components/rules/RulesBuilder.tsx
 'use client';
 
 import { useState } from 'react';
@@ -12,6 +13,16 @@ interface RulesBuilderProps {
   onRulesChange: (rules: BusinessRule[]) => void;
 }
 
+interface RuleParameters {
+  tasks?: string[];
+  group?: string;
+  maxSlots?: number;
+  workerGroup?: string;
+  maxLoad?: number;
+  taskId?: string;
+  allowedPhases?: number[];
+}
+
 export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: RulesBuilderProps) {
   const [showAddRule, setShowAddRule] = useState(false);
   const [naturalLanguageRule, setNaturalLanguageRule] = useState('');
@@ -21,6 +32,11 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
     description: '',
     parameters: {}
   });
+
+  // Get unique groups from clients and workers for dropdowns
+  const clientGroups = [...new Set(clients.map(client => client.GroupTag).filter(Boolean))];
+  const workerGroups = [...new Set(workers.map(worker => worker.WorkerGroup).filter(Boolean))];
+  const taskIds = tasks.map(task => task.TaskID).filter(Boolean);
 
   const addRule = (rule: BusinessRule) => {
     onRulesChange([...rules, rule]);
@@ -105,35 +121,44 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
   };
 
   const renderRuleParameters = (rule: BusinessRule) => {
+    const params = rule.parameters as RuleParameters;
+    
     switch (rule.type) {
       case 'coRun':
         return (
           <div className="text-sm text-gray-600">
-            Tasks: {rule.parameters.tasks?.join(', ') || 'None specified'}
+            Tasks: {params.tasks?.join(', ') || 'None specified'}
           </div>
         );
       case 'slotRestriction':
         return (
           <div className="text-sm text-gray-600">
-            Group: {rule.parameters.group}, Max Slots: {rule.parameters.maxSlots}
+            Group: {params.group || 'Not specified'}, Max Slots: {params.maxSlots || 'Not specified'}
           </div>
         );
       case 'loadLimit':
         return (
           <div className="text-sm text-gray-600">
-            Worker Group: {rule.parameters.workerGroup}, Max Load: {rule.parameters.maxLoad}
+            Worker Group: {params.workerGroup || 'Not specified'}, Max Load: {params.maxLoad || 'Not specified'}
           </div>
         );
       case 'phaseWindow':
         return (
           <div className="text-sm text-gray-600">
-            Task: {rule.parameters.taskId}, Allowed Phases: {rule.parameters.allowedPhases?.join(', ')}
+            Task: {params.taskId || 'Not specified'}, Allowed Phases: {params.allowedPhases?.join(', ') || 'Not specified'}
           </div>
         );
       default:
         return <div className="text-sm text-gray-600">Custom parameters</div>;
     }
   };
+
+  const updateNewRuleParameter = (key: string, value: string | number | string[] | number[]) => {
+    setNewRule({
+        ...newRule,
+        parameters: { ...newRule.parameters, [key]: value }
+    });
+ };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -166,7 +191,7 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
           
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-600">
-              Try: "T12 and T14 run together", "Limit GroupA to 3 slots", "T20 only in phase 1,2"
+              Try: &ldquo;T12 and T14 run together&rdquo;, &ldquo;Limit GroupA to 3 slots&rdquo;, &ldquo;T20 only in phase 1,2&rdquo;
             </div>
             <button
               onClick={parseNaturalLanguageRule}
@@ -175,6 +200,30 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
             >
               Create Rule
             </button>
+          </div>
+        </div>
+
+        {/* Available Data Summary */}
+        <div className="mt-4 pt-4 border-t border-purple-200">
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="font-medium text-purple-800">Available Tasks:</span>
+              <div className="text-purple-600 max-h-20 overflow-y-auto">
+                {taskIds.length > 0 ? taskIds.slice(0, 5).join(', ') + (taskIds.length > 5 ? '...' : '') : 'No tasks loaded'}
+              </div>
+            </div>
+            <div>
+              <span className="font-medium text-purple-800">Client Groups:</span>
+              <div className="text-purple-600">
+                {clientGroups.length > 0 ? clientGroups.join(', ') : 'No groups found'}
+              </div>
+            </div>
+            <div>
+              <span className="font-medium text-purple-800">Worker Groups:</span>
+              <div className="text-purple-600">
+                {workerGroups.length > 0 ? workerGroups.join(', ') : 'No groups found'}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -222,7 +271,7 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
       {/* Manual Rule Creation Modal */}
       {showAddRule && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4">Add New Rule</h3>
             
             <div className="space-y-4">
@@ -232,7 +281,7 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
                 </label>
                 <select
                   value={newRule.type}
-                  onChange={(e) => setNewRule({...newRule, type: e.target.value as any})}
+                  onChange={(e) => setNewRule({...newRule, type: e.target.value as BusinessRule['type']})}
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="coRun">Co-Run</option>
@@ -278,12 +327,14 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
                   <input
                     type="text"
                     placeholder="T1, T2, T3"
-                    onChange={(e) => setNewRule({
-                      ...newRule, 
-                      parameters: {...newRule.parameters, tasks: e.target.value.split(',').map(t => t.trim())}
-                    })}
+                    onChange={(e) => updateNewRuleParameter('tasks', e.target.value.split(',').map(t => t.trim()))}
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                  {taskIds.length > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Available: {taskIds.slice(0, 10).join(', ')}
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -294,16 +345,13 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
                       Group
                     </label>
                     <select
-                      onChange={(e) => setNewRule({
-                        ...newRule, 
-                        parameters: {...newRule.parameters, group: e.target.value}
-                      })}
+                      onChange={(e) => updateNewRuleParameter('group', e.target.value)}
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select group</option>
-                      <option value="GroupA">GroupA</option>
-                      <option value="GroupB">GroupB</option>
-                      <option value="GroupC">GroupC</option>
+                      {clientGroups.map(group => (
+                        <option key={group} value={group}>{group}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -313,10 +361,67 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
                     <input
                       type="number"
                       min="1"
-                      onChange={(e) => setNewRule({
-                        ...newRule, 
-                        parameters: {...newRule.parameters, maxSlots: parseInt(e.target.value)}
-                      })}
+                      onChange={(e) => updateNewRuleParameter('maxSlots', parseInt(e.target.value))}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {newRule.type === 'loadLimit' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Worker Group
+                    </label>
+                    <select
+                      onChange={(e) => updateNewRuleParameter('workerGroup', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select group</option>
+                      {workerGroups.map(group => (
+                        <option key={group} value={group}>{group}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Load
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      onChange={(e) => updateNewRuleParameter('maxLoad', parseInt(e.target.value))}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {newRule.type === 'phaseWindow' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Task ID
+                    </label>
+                    <select
+                      onChange={(e) => updateNewRuleParameter('taskId', e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select task</option>
+                      {taskIds.map(taskId => (
+                        <option key={taskId} value={taskId}>{taskId}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Allowed Phases (comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="1, 2, 3"
+                      onChange={(e) => updateNewRuleParameter('allowedPhases', e.target.value.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p)))}
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -333,7 +438,8 @@ export function RulesBuilder({ clients, workers, tasks, rules, onRulesChange }: 
               </button>
               <button
                 onClick={createManualRule}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                disabled={!newRule.name}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 transition-colors"
               >
                 Add Rule
               </button>

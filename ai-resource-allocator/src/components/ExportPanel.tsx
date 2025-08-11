@@ -11,9 +11,16 @@ interface ExportPanelProps {
   workers: Worker[];
   tasks: Task[];
   rules: BusinessRule[];
+  prioritizationWeights?: Record<string, number>;
 }
 
-export function ExportPanel({ clients, workers, tasks, rules }: ExportPanelProps) {
+export function ExportPanel({ 
+  clients, 
+  workers, 
+  tasks, 
+  rules, 
+  prioritizationWeights = {} 
+}: ExportPanelProps) {
   const [exportFormat, setExportFormat] = useState<'xlsx' | 'csv'>('xlsx');
   const [includeValidatedData, setIncludeValidatedData] = useState(true);
   const [includeRulesConfig, setIncludeRulesConfig] = useState(true);
@@ -71,29 +78,43 @@ export function ExportPanel({ clients, workers, tasks, rules }: ExportPanelProps
   };
 
   const exportAsCSV = async () => {
-    const exportCSV = (data: any[], filename: string) => {
+    // Fixed: Use generic type parameter and convert objects to Record<string, unknown>
+    const exportCSV = <T extends Record<string, unknown>>(data: T[], filename: string) => {
+      if (data.length === 0) return;
+      
       const csvContent = [
         Object.keys(data[0]).join(','),
-        ...data.map(row => Object.values(row).map(value => 
-          typeof value === 'string' && value.includes(',') 
-            ? `"${value}"` 
-            : value
-        ).join(','))
+        ...data.map(row => Object.values(row).map(value => {
+          if (value === null || value === undefined) return '';
+          const stringValue = String(value);
+          // Escape quotes and wrap in quotes if contains comma, quote, or newline
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        }).join(','))
       ].join('\n');
       
-      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     };
 
     if (includeValidatedData) {
-      exportCSV(clients, `clients-${Date.now()}.csv`);
-      exportCSV(workers, `workers-${Date.now()}.csv`);
-      exportCSV(tasks, `tasks-${Date.now()}.csv`);
+      // Convert typed arrays to Record<string, unknown>[] for CSV export
+      const clientsData = clients.map(client => ({ ...client } as Record<string, unknown>));
+      const workersData = workers.map(worker => ({ ...worker } as Record<string, unknown>));
+      const tasksData = tasks.map(task => ({ ...task } as Record<string, unknown>));
+      
+      exportCSV(clientsData, `clients-${Date.now()}.csv`);
+      exportCSV(workersData, `workers-${Date.now()}.csv`);
+      exportCSV(tasksData, `tasks-${Date.now()}.csv`);
     }
   };
 
@@ -105,6 +126,7 @@ export function ExportPanel({ clients, workers, tasks, rules }: ExportPanelProps
         totalRules: rules.length
       },
       businessRules: rules,
+      prioritizationWeights: includePrioritization ? prioritizationWeights : {},
       dataStatistics: {
         clientCount: clients.length,
         workerCount: workers.length,
@@ -118,18 +140,21 @@ export function ExportPanel({ clients, workers, tasks, rules }: ExportPanelProps
     };
     
     const blob = new Blob([JSON.stringify(config, null, 2)], { 
-      type: 'application/json' 
+      type: 'application/json;charset=utf-8;' 
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `rules-config-${Date.now()}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
   const getDataQualityScore = () => {
     const totalRecords = clients.length + workers.length + tasks.length;
+    if (totalRecords === 0) return 0;
     const validRecords = totalRecords; // Assuming validation passed
     return Math.round((validRecords / totalRecords) * 100);
   };
@@ -159,12 +184,21 @@ export function ExportPanel({ clients, workers, tasks, rules }: ExportPanelProps
           </div>
         </div>
 
-        <div className="flex items-center justify-center p-4 bg-green-50 rounded-lg">
-          <CheckCircle2 className="w-6 h-6 text-green-600 mr-2" />
-          <span className="text-green-800 font-medium">
-            Data Quality Score: {getDataQualityScore()}% - Ready for Export
-          </span>
-        </div>
+        {getDataQualityScore() > 0 ? (
+          <div className="flex items-center justify-center p-4 bg-green-50 rounded-lg">
+            <CheckCircle2 className="w-6 h-6 text-green-600 mr-2" />
+            <span className="text-green-800 font-medium">
+              Data Quality Score: {getDataQualityScore()}% - Ready for Export
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center p-4 bg-yellow-50 rounded-lg">
+            <div className="w-6 h-6 bg-yellow-400 rounded-full mr-2"></div>
+            <span className="text-yellow-800 font-medium">
+              No data loaded yet. Upload files to begin.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Export Configuration */}
@@ -256,8 +290,8 @@ export function ExportPanel({ clients, workers, tasks, rules }: ExportPanelProps
           
           <button
             onClick={exportData}
-            disabled={isExporting}
-            className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center text-lg font-medium"
+            disabled={isExporting || (clients.length === 0 && workers.length === 0 && tasks.length === 0)}
+            className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center text-lg font-medium"
           >
             <Download className="w-5 h-5 mr-2" />
             {isExporting ? 'Exporting...' : 'Export Data'}
@@ -301,11 +335,31 @@ export function ExportPanel({ clients, workers, tasks, rules }: ExportPanelProps
             <span className="text-gray-600">{rules.length} configured</span>
           </div>
           
+          <div className="flex justify-between py-2 border-b border-gray-200">
+            <span className="font-medium">Prioritization weights:</span>
+            <span className="text-gray-600">
+              {Object.keys(prioritizationWeights).length > 0 
+                ? `${Object.keys(prioritizationWeights).length} configured` 
+                : 'Not set'}
+            </span>
+          </div>
+          
           <div className="flex justify-between py-2">
             <span className="font-medium">Data status:</span>
             <span className="text-green-600 font-medium">Validated & Ready</span>
           </div>
         </div>
+
+        {clients.length === 0 && workers.length === 0 && tasks.length === 0 && (
+          <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-yellow-400 rounded-full mr-2"></div>
+              <span className="text-yellow-800">
+                No data available for export. Please upload data files first.
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

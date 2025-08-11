@@ -1,9 +1,9 @@
 // components/ai-features/AIValidator.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Brain, AlertTriangle, CheckCircle, Lightbulb, Zap } from 'lucide-react';
-import { Client, Worker, Task, ValidationError } from '@/lib/types';
+import { Client, Worker, Task } from '@/lib/types';
 
 interface AIValidatorProps {
   clients: Client[];
@@ -22,7 +22,7 @@ interface ValidationSuggestion {
   suggestion: string;
   confidence: number;
   autoApplicable: boolean;
-  value?: any;
+  value?: string | number | boolean | Record<string, unknown>;
 }
 
 export function AIValidator({ clients, workers, tasks, onSuggestionApply }: AIValidatorProps) {
@@ -110,7 +110,7 @@ export function AIValidator({ clients, workers, tasks, onSuggestionApply }: AIVa
       if (worker.AvailableSlots) {
         try {
           const slots = JSON.parse(worker.AvailableSlots);
-          if (slots.length === 1) {
+          if (Array.isArray(slots) && slots.length === 1) {
             newSuggestions.push({
               id: `worker-${index}-availability`,
               type: 'optimization',
@@ -215,6 +215,14 @@ export function AIValidator({ clients, workers, tasks, onSuggestionApply }: AIVa
     }
   };
 
+  const formatSuggestionValue = (value: string | number | boolean | Record<string, unknown> | undefined): string => {
+    if (value === undefined) return '';
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    return String(value);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex justify-between items-center mb-6">
@@ -287,18 +295,20 @@ export function AIValidator({ clients, workers, tasks, onSuggestionApply }: AIVa
                     </div>
                     
                     <div className="flex-1">
-                      <div className="flex items-center mb-2">
+                      <div className="flex items-center justify-between mb-2">
                         <span className="font-medium text-gray-900 mr-2">{suggestion.issue}</span>
-                        <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                          suggestion.type === 'fix' ? 'bg-red-100 text-red-800' :
-                          suggestion.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {suggestion.type}
-                        </span>
-                        <span className="ml-2 text-xs text-gray-500">
-                          {suggestion.confidence}% confidence
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                            suggestion.type === 'fix' ? 'bg-red-100 text-red-800' :
+                            suggestion.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {suggestion.type}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {suggestion.confidence}% confidence
+                          </span>
+                        </div>
                       </div>
                       
                       <p className="text-gray-700 mb-2">{suggestion.suggestion}</p>
@@ -311,7 +321,7 @@ export function AIValidator({ clients, workers, tasks, onSuggestionApply }: AIVa
                         <div className="mt-2 text-sm">
                           <span className="text-gray-600">Suggested value: </span>
                           <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-                            {JSON.stringify(suggestion.value)}
+                            {formatSuggestionValue(suggestion.value)}
                           </code>
                         </div>
                       )}

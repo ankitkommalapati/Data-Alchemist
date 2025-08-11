@@ -5,21 +5,28 @@ import { useState, useCallback } from 'react';
 import { Upload, FileText, CheckCircle, Download, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
+import { Client, Worker, Task } from '@/lib/types';
 
 interface FileUploadProps {
-  onDataUpload: (data: any[], type: 'clients' | 'workers' | 'tasks') => void;
+  onDataUpload: (data: Client[] | Worker[] | Task[], type: 'clients' | 'workers' | 'tasks') => void;
+}
+
+type UploadStatus = 'uploading' | 'success' | 'error';
+
+interface ParsedData {
+  [key: string]: string | number | undefined;
 }
 
 export function FileUpload({ onDataUpload }: FileUploadProps) {
   const [uploadStatus, setUploadStatus] = useState<{
-    clients?: 'uploading' | 'success' | 'error';
-    workers?: 'uploading' | 'success' | 'error';
-    tasks?: 'uploading' | 'success' | 'error';
+    clients?: UploadStatus;
+    workers?: UploadStatus;
+    tasks?: UploadStatus;
   }>({});
 
   const [loadingVersion, setLoadingVersion] = useState<'v1' | 'v2' | null>(null);
 
-  const intelligentColumnMapping = (headers: string[], expectedFields: string[]) => {
+  const intelligentColumnMapping = (headers: string[], expectedFields: string[]): Record<string, string> => {
     const mapping: Record<string, string> = {};
     
     headers.forEach(header => {
@@ -40,9 +47,6 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
           return;
         }
         
-        // Special cases for common naming variations
-        // components/FileUpload.tsx (continued)
-
         // Special cases for common naming variations
         const specialMappings: Record<string, string[]> = {
           'ClientID': ['clientid', 'client_id', 'id', 'clientidentifier'],
@@ -77,21 +81,138 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
     return mapping;
   };
 
+  const ensureUniqueClientIds = (data: Client[]): Client[] => {
+    const seenIds = new Set<string>();
+    
+    return data.filter((client, index) => {
+      const id = client.ClientID;
+      
+      if (seenIds.has(id)) {
+        console.warn(`Duplicate Client ID found: ${id} at index ${index}, removing duplicate`);
+        return false;
+      }
+      
+      if (!id || id.trim() === '') {
+        console.warn(`Empty Client ID found at index ${index}, skipping record`);
+        return false;
+      }
+      
+      seenIds.add(id);
+      return true;
+    });
+  };
+
+  const ensureUniqueWorkerIds = (data: Worker[]): Worker[] => {
+    const seenIds = new Set<string>();
+    
+    return data.filter((worker, index) => {
+      const id = worker.WorkerID;
+      
+      if (seenIds.has(id)) {
+        console.warn(`Duplicate Worker ID found: ${id} at index ${index}, removing duplicate`);
+        return false;
+      }
+      
+      if (!id || id.trim() === '') {
+        console.warn(`Empty Worker ID found at index ${index}, skipping record`);
+        return false;
+      }
+      
+      seenIds.add(id);
+      return true;
+    });
+  };
+
+  const ensureUniqueTaskIds = (data: Task[]): Task[] => {
+    const seenIds = new Set<string>();
+    
+    return data.filter((task, index) => {
+      const id = task.TaskID;
+      
+      if (seenIds.has(id)) {
+        console.warn(`Duplicate Task ID found: ${id} at index ${index}, removing duplicate`);
+        return false;
+      }
+      
+      if (!id || id.trim() === '') {
+        console.warn(`Empty Task ID found at index ${index}, skipping record`);
+        return false;
+      }
+      
+      seenIds.add(id);
+      return true;
+    });
+  };
+
+  const normalizeDataForType = (data: ParsedData[], type: 'clients' | 'workers' | 'tasks'): Client[] | Worker[] | Task[] => {
+    switch (type) {
+      case 'clients': {
+        const clientData: Client[] = data.map((row, index) => ({
+          ClientID: String(row.ClientID || `C${index + 1}`),
+          ClientName: String(row.ClientName || ''),
+          PriorityLevel: Number(row.PriorityLevel) || 1,
+          RequestedTaskIDs: String(row.RequestedTaskIDs || ''),
+          GroupTag: String(row.GroupTag || ''),
+          AttributesJSON: String(row.AttributesJSON || '')
+        }));
+        return ensureUniqueClientIds(clientData);
+      }
+      
+      case 'workers': {
+        const workerData: Worker[] = data.map((row, index) => ({
+          WorkerID: String(row.WorkerID || `W${index + 1}`),
+          WorkerName: String(row.WorkerName || ''),
+          Skills: String(row.Skills || ''),
+          AvailableSlots: String(row.AvailableSlots || ''),
+          MaxLoadPerPhase: Number(row.MaxLoadPerPhase) || 1,
+          WorkerGroup: String(row.WorkerGroup || ''),
+          QualificationLevel: Number(row.QualificationLevel) || 1
+        }));
+        return ensureUniqueWorkerIds(workerData);
+      }
+      
+      case 'tasks': {
+        const taskData: Task[] = data.map((row, index) => ({
+          TaskID: String(row.TaskID || `T${index + 1}`),
+          TaskName: String(row.TaskName || ''),
+          Category: String(row.Category || ''),
+          Duration: Number(row.Duration) || 1,
+          RequiredSkills: String(row.RequiredSkills || ''),
+          PreferredPhases: String(row.PreferredPhases || ''),
+          MaxConcurrent: Number(row.MaxConcurrent) || 1
+        }));
+        return ensureUniqueTaskIds(taskData);
+      }
+      
+      default:
+        return [];
+    }
+  };
+
   const processFile = useCallback(async (file: File, type: 'clients' | 'workers' | 'tasks') => {
     setUploadStatus(prev => ({ ...prev, [type]: 'uploading' }));
     
     try {
       const fileBuffer = await file.arrayBuffer();
-      let data: any[] = [];
+      let rawData: ParsedData[] = [];
       
       if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        data = XLSX.utils.sheet_to_json(worksheet);
+        rawData = XLSX.utils.sheet_to_json(worksheet) as ParsedData[];
       } else if (file.name.endsWith('.csv')) {
         const text = new TextDecoder().decode(fileBuffer);
-        const result = Papa.parse(text, { header: true, skipEmptyLines: true });
-        data = result.data as any[];
+        const result = Papa.parse<ParsedData>(text, { 
+          header: true, 
+          skipEmptyLines: true,
+          dynamicTyping: true,
+          transformHeader: (header: string) => header.trim()
+        });
+        rawData = result.data;
+        
+        if (result.errors.length > 0) {
+          console.warn(`Parsing warnings for ${type}:`, result.errors);
+        }
       }
 
       // AI-powered column mapping
@@ -101,12 +222,12 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
         tasks: ['TaskID', 'TaskName', 'Category', 'Duration', 'RequiredSkills', 'PreferredPhases', 'MaxConcurrent']
       };
 
-      const headers = Object.keys(data[0] || {});
+      const headers = Object.keys(rawData[0] || {});
       const mapping = intelligentColumnMapping(headers, expectedFields[type]);
       
       // Apply mapping and normalize data
-      const normalizedData = data.map(row => {
-        const normalized: any = {};
+      const mappedData: ParsedData[] = rawData.map(row => {
+        const normalized: ParsedData = {};
         
         // Apply mappings
         Object.entries(mapping).forEach(([originalKey, mappedKey]) => {
@@ -126,7 +247,12 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
         return Object.values(row).some(value => value !== '' && value !== null && value !== undefined);
       });
 
-      onDataUpload(normalizedData, type);
+      // Convert to properly typed data
+      const typedData = normalizeDataForType(mappedData, type);
+      
+      console.log(`Processed ${typedData.length} ${type} records`);
+      
+      onDataUpload(typedData, type);
       setUploadStatus(prev => ({ ...prev, [type]: 'success' }));
     } catch (error) {
       console.error(`Error processing ${type} file:`, error);
@@ -154,29 +280,35 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
         const response = await fetch(`/samples/${version}/${fileType}.csv`);
         
         if (!response.ok) {
-          throw new Error(`Failed to load ${fileType} data`);
+          throw new Error(`Failed to load ${fileType} data: ${response.status} ${response.statusText}`);
         }
         
         const csvText = await response.text();
         
-        const result = Papa.parse(csvText, { 
+        const result = Papa.parse<ParsedData>(csvText, { 
           header: true, 
           skipEmptyLines: true,
-          transformHeader: (header) => header.trim() // Clean headers
+          dynamicTyping: true,
+          transformHeader: (header: string) => header.trim()
         });
         
         if (result.errors.length > 0) {
           console.warn(`Parsing warnings for ${fileType}:`, result.errors);
         }
         
-        // Filter out empty rows
-        const cleanData = (result.data as any[]).filter(row => {
+        // Filter out empty rows and normalize data
+        const cleanData = result.data.filter(row => {
           return Object.values(row).some(value => 
             value !== '' && value !== null && value !== undefined
           );
         });
         
-        onDataUpload(cleanData, fileType);
+        // Convert to properly typed data
+        const typedData = normalizeDataForType(cleanData, fileType);
+        
+        console.log(`Loaded ${typedData.length} ${fileType} from sample data`);
+        
+        onDataUpload(typedData, fileType);
         setUploadStatus(prev => ({ ...prev, [fileType]: 'success' }));
       }
     } catch (error) {
@@ -187,14 +319,14 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
     }
   };
 
-  const getStatusIcon = (status?: 'uploading' | 'success' | 'error') => {
+  const getStatusIcon = (status?: UploadStatus) => {
     if (status === 'success') return <CheckCircle className="w-5 h-5 text-green-500" />;
     if (status === 'error') return <AlertCircle className="w-5 h-5 text-red-500" />;
     if (status === 'uploading') return <div className="w-5 h-5 rounded-full bg-yellow-500 animate-pulse" />;
     return <FileText className="w-5 h-5 text-gray-400" />;
   };
 
-  const getStatusText = (status?: 'uploading' | 'success' | 'error') => {
+  const getStatusText = (status?: UploadStatus) => {
     if (status === 'success') return 'Uploaded successfully';
     if (status === 'error') return 'Upload failed';
     if (status === 'uploading') return 'Uploading...';
@@ -374,4 +506,3 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
     </div>
   );
 }
-          

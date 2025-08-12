@@ -1,4 +1,3 @@
-// components/data-grid/DataGrid.tsx
 'use client';
 
 import { Client, Worker, Task } from '@/lib/types';

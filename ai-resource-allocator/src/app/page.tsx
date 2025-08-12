@@ -1,5 +1,3 @@
-// app/page.tsx - Update with full-width components
-
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';

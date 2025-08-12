@@ -1,4 +1,3 @@
-// components/FileUpload.tsx
 'use client';
 
 import { useState, useCallback } from 'react';

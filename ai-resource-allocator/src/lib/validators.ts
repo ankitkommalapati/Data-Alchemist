@@ -1,4 +1,3 @@
-// lib/validators.ts
 import { Client, Worker, Task, ValidationError } from './types';
 
 export class DataValidator {

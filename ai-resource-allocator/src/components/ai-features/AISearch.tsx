@@ -1,4 +1,3 @@
-// components/ai-features/AISearch.tsx
 'use client';
 
 import { useState } from 'react';

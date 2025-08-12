@@ -143,7 +143,7 @@ export default function Home() {
       <header className={`transition-all duration-500 ease-in-out ${isScrolled ? 'opacity-0 -translate-y-8' : 'opacity-100 translate-y-0'}`}>
         <div className="text-center py-12 px-6">
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            🚀 AI Resource Allocation Configurator
+            AI Resource Allocation Configurator
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Transform spreadsheet chaos into organized, validated data

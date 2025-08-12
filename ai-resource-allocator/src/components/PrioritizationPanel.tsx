@@ -1,3 +1,4 @@
+// components/PrioritizationPanel.tsx
 'use client';
 
 import { useState } from 'react';
@@ -178,14 +179,14 @@ export function PrioritizationPanel({ onWeightsChange }: PrioritizationPanelProp
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-semibold flex items-center">
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
             <Sliders className="w-6 h-6 mr-2" />
             Prioritization & Weights
           </h2>
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-700 mt-1 font-medium">
             Configure how the allocation algorithm should balance different criteria
           </p>
         </div>
@@ -193,14 +194,14 @@ export function PrioritizationPanel({ onWeightsChange }: PrioritizationPanelProp
         <div className="flex space-x-2">
           <button
             onClick={resetWeights}
-            className="flex items-center px-3 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            className="flex items-center px-3 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 transition-colors font-medium"
           >
             <RotateCcw className="w-4 h-4 mr-1" />
             Reset
           </button>
           <button
             onClick={exportConfiguration}
-            className="flex items-center px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+            className="flex items-center px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors font-medium"
           >
             <Download className="w-4 h-4 mr-1" />
             Export Config
@@ -210,7 +211,7 @@ export function PrioritizationPanel({ onWeightsChange }: PrioritizationPanelProp
 
       {/* Profile Selection */}
       <div className="mb-8">
-        <h3 className="text-lg font-medium mb-4">Quick Profiles</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Profiles</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Object.entries(profiles).map(([key, profile]) => (
             <div
@@ -219,11 +220,11 @@ export function PrioritizationPanel({ onWeightsChange }: PrioritizationPanelProp
               className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
                 activeProfile === key
                   ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                  : 'border-gray-300 hover:border-gray-400 bg-white'
               }`}
             >
-              <h4 className="font-medium text-gray-900 mb-2">{profile.name}</h4>
-              <p className="text-sm text-gray-600">{profile.description}</p>
+              <h4 className="font-semibold text-gray-900 mb-2">{profile.name}</h4>
+              <p className="text-sm text-gray-700">{profile.description}</p>
             </div>
           ))}
         </div>
@@ -231,17 +232,17 @@ export function PrioritizationPanel({ onWeightsChange }: PrioritizationPanelProp
 
       {/* Weight Sliders */}
       <div className="space-y-6">
-        <h3 className="text-lg font-medium">Fine-tune Priorities</h3>
+        <h3 className="text-lg font-bold text-gray-900">Fine-tune Priorities</h3>
         
         {priorities.map((priority) => (
           <div key={priority.id} className="space-y-2">
             <div className="flex justify-between items-center">
               <div>
-                <h4 className="font-medium text-gray-900">{priority.name}</h4>
-                <p className="text-sm text-gray-600">{priority.description}</p>
+                <h4 className="font-semibold text-gray-900">{priority.name}</h4>
+                <p className="text-sm text-gray-700">{priority.description}</p>
               </div>
               <div className="flex items-center space-x-3">
-                <span className="text-sm font-medium text-gray-700 w-12 text-center">
+                <span className="text-sm font-bold text-gray-900 w-12 text-center">
                   {priority.weight}%
                 </span>
                 <div className={`w-3 h-3 rounded-full ${getWeightColor(priority.weight)}`} />
@@ -258,7 +259,7 @@ export function PrioritizationPanel({ onWeightsChange }: PrioritizationPanelProp
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
               />
               <div 
-                className="absolute top-0 left-0 h-2 bg-blue-500 rounded-lg transition-all duration-200"
+                className="absolute top-0 left-0 h-2 bg-blue-500 rounded-lg transition-all duration-200 pointer-events-none"
                 style={{ width: `${priority.weight}%` }}
               />
             </div>
@@ -267,13 +268,13 @@ export function PrioritizationPanel({ onWeightsChange }: PrioritizationPanelProp
       </div>
 
       {/* Weight Summary */}
-      <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-        <h4 className="font-medium text-gray-900 mb-3">Configuration Summary</h4>
+      <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h4 className="font-bold text-gray-900 mb-3">Configuration Summary</h4>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           {priorities.map((priority) => (
             <div key={priority.id} className="flex justify-between">
-              <span className="text-gray-600 truncate mr-2">{priority.name}:</span>
-              <span className="font-medium">{priority.weight}%</span>
+              <span className="text-gray-800 truncate mr-2 font-medium">{priority.name}:</span>
+              <span className="font-bold text-gray-900">{priority.weight}%</span>
             </div>
           ))}
         </div>

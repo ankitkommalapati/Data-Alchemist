@@ -1,13 +1,14 @@
 'use client';
 
-import { AlertTriangle, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle, AlertCircle, Info, Zap } from 'lucide-react';
 import { ValidationError } from '@/lib/types';
 
 interface ValidationPanelProps {
   errors: ValidationError[];
+  onQuickFix?: (errorType: string) => void;
 }
 
-export function ValidationPanel({ errors }: ValidationPanelProps) {
+export function ValidationPanel({ errors, onQuickFix }: ValidationPanelProps) {
   const errorsByType = errors.reduce((acc, error) => {
     acc[error.severity] = (acc[error.severity] || 0) + 1;
     return acc;
@@ -49,6 +50,21 @@ export function ValidationPanel({ errors }: ValidationPanelProps) {
     );
   }
 
+  const getQuickFixButton = (error: ValidationError) => {
+    if (error.message.includes('oversaturated') && onQuickFix) {
+      return (
+        <button
+          onClick={() => onQuickFix('oversaturation')}
+          className="ml-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600 transition-colors flex items-center"
+        >
+          <Zap className="w-3 h-3 mr-1" />
+          Quick Fix
+        </button>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
@@ -80,23 +96,26 @@ export function ValidationPanel({ errors }: ValidationPanelProps) {
                   key={`${error.entity}-${error.field}-${error.row}-${errorIndex}`}
                   className={`border rounded p-3 ${getSeverityColor(error.severity)}`}
                 >
-                  <div className="flex items-start space-x-2">
-                    {getIcon(error.severity)}
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-gray-900">
-                          Row {error.row + 1} • {error.field}
-                        </span>
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          error.severity === 'error' 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {error.severity}
-                        </span>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-2 flex-1">
+                      {getIcon(error.severity)}
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-gray-900">
+                            Row {error.row + 1} • {error.field}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            error.severity === 'error' 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {error.severity}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 text-sm">{error.message}</p>
                       </div>
-                      <p className="text-gray-700 text-sm">{error.message}</p>
                     </div>
+                    {getQuickFixButton(error)}
                   </div>
                 </div>
               ))}

@@ -346,18 +346,18 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold">Data Upload</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Data Upload</h2>
         {areAllFilesUploaded() && (
           <button
             onClick={resetUploadStatus}
-            className="text-sm text-gray-600 hover:text-gray-800 underline"
+            className="text-sm text-gray-700 hover:text-gray-900 underline font-medium"
           >
             Reset & Upload New Files
           </button>
         )}
       </div>
       
-      <p className="text-gray-600 mb-6">
+      <p className="text-gray-700 mb-6">
         Upload your CSV or XLSX files. Our AI will intelligently map columns even with non-standard headers.
       </p>
       
@@ -368,8 +368,8 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
           Quick Start with Sample Data
         </h3>
         
-        <p className="text-sm text-blue-700 mb-4">
-          Load complete datasets from the provided Google Sheets to get started immediately.
+        <p className="text-sm text-blue-800 mb-4">
+          Load your complete datasets to get started immediately.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-3">
@@ -410,14 +410,14 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
           </button>
         </div>
         
-        <div className="mt-3 text-xs text-blue-600">
+        <div className="mt-3 text-xs text-blue-800 font-medium">
           V1 and V2 contain different data variations to test various scenarios and edge cases.
         </div>
       </div>
       
       {/* Manual File Upload */}
       <div className="space-y-4 mb-6">
-        <h3 className="font-medium text-gray-900">Or Upload Your Own Files</h3>
+        <h3 className="font-semibold text-gray-900">Or Upload Your Own Files</h3>
         
         <div className="grid md:grid-cols-3 gap-6">
           {(['clients', 'workers', 'tasks'] as const).map((type) => (
@@ -432,13 +432,13 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
               }`}
             >
               <div className="flex items-center justify-center mb-4">
-                <Upload className="w-8 h-8 text-gray-400 mr-2" />
+                <Upload className="w-8 h-8 text-gray-500 mr-2" />
                 {getStatusIcon(uploadStatus[type])}
               </div>
               
-              <h3 className="text-lg font-medium mb-2 capitalize">{type}</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2 capitalize">{type}</h3>
               
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-700 mb-4 font-medium">
                 {getStatusText(uploadStatus[type])}
               </p>
               
@@ -471,18 +471,18 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
 
       {/* Upload Progress Summary */}
       {Object.keys(uploadStatus).length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="font-medium text-gray-900 mb-3">Upload Status</h4>
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <h4 className="font-semibold text-gray-900 mb-3">Upload Status</h4>
           <div className="space-y-2">
             {(['clients', 'workers', 'tasks'] as const).map((type) => (
               <div key={type} className="flex items-center justify-between text-sm">
-                <span className="capitalize font-medium">{type}:</span>
+                <span className="capitalize font-semibold text-gray-900">{type}:</span>
                 <div className="flex items-center">
                   {getStatusIcon(uploadStatus[type])}
-                  <span className={`ml-2 ${
+                  <span className={`ml-2 font-medium ${
                     uploadStatus[type] === 'success' ? 'text-green-700' :
                     uploadStatus[type] === 'error' ? 'text-red-700' :
-                    'text-gray-700'
+                    'text-gray-800'
                   }`}>
                     {getStatusText(uploadStatus[type])}
                   </span>
@@ -492,10 +492,10 @@ export function FileUpload({ onDataUpload }: FileUploadProps) {
           </div>
           
           {areAllFilesUploaded() && (
-            <div className="mt-4 p-3 bg-green-100 rounded-md">
+            <div className="mt-4 p-3 bg-green-100 rounded-md border border-green-200">
               <div className="flex items-center">
                 <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                <span className="text-green-800 font-medium">
+                <span className="text-green-800 font-semibold">
                   All files uploaded successfully! You can now proceed to validate and edit your data.
                 </span>
               </div>
